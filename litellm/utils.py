@@ -8683,6 +8683,12 @@ class ProviderConfigManager:
             )
 
             return get_modelscope_image_generation_config(model)
+        elif LlmProviders.MINIMAX == provider:
+            from litellm.llms.minimax.image_generation import (
+                get_minimax_image_generation_config,
+            )
+
+            return get_minimax_image_generation_config(model)
         return None
 
     @staticmethod
