@@ -8638,6 +8638,12 @@ class ProviderConfigManager:
             )
 
             return get_runwayml_image_generation_config(model)
+        elif LlmProviders.MINIMAX == provider:
+            from litellm.llms.minimax.image_generation import (
+                get_minimax_image_generation_config,
+            )
+
+            return get_minimax_image_generation_config(model)
         elif LlmProviders.BLACK_FOREST_LABS == provider:
             from litellm.llms.black_forest_labs.image_generation import (
                 get_black_forest_labs_image_generation_config,

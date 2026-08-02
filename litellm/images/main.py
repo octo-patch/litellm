@@ -384,6 +384,7 @@ def image_generation(
             litellm.LlmProviders.FAL_AI,
             litellm.LlmProviders.STABILITY,
             litellm.LlmProviders.RUNWAYML,
+            litellm.LlmProviders.MINIMAX,
             litellm.LlmProviders.VERTEX_AI,
             litellm.LlmProviders.OPENROUTER,
             litellm.LlmProviders.DASHSCOPE,
