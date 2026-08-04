@@ -8206,6 +8206,175 @@ def speech(
     return response
 
 
+async def amusic_generation(*args, **kwargs) -> HttpxBinaryResponseContent:
+    """
+    Calls MiniMax music generation endpoints (async).
+
+    See `music_generation` for the full parameter list.
+    """
+    loop = asyncio.get_event_loop()
+    model = args[0] if len(args) > 0 else kwargs["model"]
+    ### PASS ARGS TO Music Generation ###
+    kwargs["amusic_generation"] = True
+    custom_llm_provider = kwargs.get("custom_llm_provider", None)
+    try:
+        # Use a partial function to pass your keyword arguments
+        func = partial(music_generation, *args, **kwargs)
+
+        # Add the context to the function
+        ctx = contextvars.copy_context()
+        func_with_context = partial(ctx.run, func)
+
+        _, custom_llm_provider, _, _ = get_llm_provider(model=model, api_base=kwargs.get("api_base", None))
+
+        # Await normally
+        init_response = await loop.run_in_executor(None, func_with_context)
+        if asyncio.iscoroutine(init_response):
+            response = await init_response
+        else:
+            # Call the synchronous function using run_in_executor
+            response = await loop.run_in_executor(None, func_with_context)
+        return response  # type: ignore
+    except Exception as e:
+        custom_llm_provider = custom_llm_provider or "minimax"
+        raise exception_type(
+            model=model,
+            custom_llm_provider=custom_llm_provider,
+            original_exception=e,
+            completion_kwargs=args,
+            extra_kwargs=kwargs,
+        )
+
+
+@client
+def music_generation(
+    model: str,
+    prompt: str,
+    api_key: str | None = None,
+    api_base: str | None = None,
+    organization: str | None = None,
+    project: str | None = None,
+    max_retries: int | None = None,
+    metadata: dict | None = None,
+    timeout: float | httpx.Timeout | None = None,
+    client=None,
+    headers: dict | None = None,
+    custom_llm_provider: str | None = None,
+    amusic_generation: bool | None = None,
+    **kwargs,
+) -> HttpxBinaryResponseContent | Coroutine[Any, Any, HttpxBinaryResponseContent]:
+    """
+    Generates music using the MiniMax Music Generation API.
+
+    Supported models include `minimax/music-3.0` and `minimax/music-2.6`.
+    The generated audio is returned as binary bytes.
+
+    Args:
+        model: MiniMax music model (e.g. `minimax/music-3.0`)
+        prompt: The music description / request
+        api_key: MiniMax API key (or set MINIMAX_API_KEY)
+        api_base: MiniMax API base (defaults to https://api.minimax.io)
+        lyrics: Optional lyrics for the generated song
+        output_format: One of "url" or "hex" (defaults to "url" on the API)
+        is_instrumental: Generate an instrumental track
+        audio_url / audio_base64: Source audio for the cover feature
+        cover_feature_id: Cover template id for the cover feature
+
+    Additional MiniMax-specific parameters (e.g. `stream`, `audio_setting`,
+    `lyrics_optimizer`) can be passed via `extra_body`.
+    """
+    user = kwargs.get("user", None)
+    litellm_call_id: str | None = kwargs.get("litellm_call_id", None)
+    proxy_server_request = kwargs.get("proxy_server_request", None)
+    extra_headers = kwargs.get("extra_headers", None)
+    model_info = kwargs.get("model_info", None)
+
+    model, custom_llm_provider, dynamic_api_key, api_base = get_llm_provider(
+        model=model, custom_llm_provider=custom_llm_provider, api_base=api_base
+    )  # type: ignore
+    kwargs.pop("tags", [])
+
+    if timeout is None:
+        timeout = litellm.request_timeout
+    if max_retries is None:
+        max_retries = litellm.num_retries or openai.DEFAULT_MAX_RETRIES
+
+    litellm_params_dict = get_litellm_params(**kwargs)
+    if api_base is not None:
+        litellm_params_dict["api_base"] = api_base
+    if api_key is not None:
+        litellm_params_dict["api_key"] = api_key
+    if dynamic_api_key is not None:
+        litellm_params_dict["api_key"] = dynamic_api_key
+
+    if custom_llm_provider != "minimax":
+        raise litellm.BadRequestError(
+            message=(
+                f"music_generation is only supported for the MiniMax provider. "
+                f"Got custom_llm_provider={custom_llm_provider}."
+            ),
+            model=model,
+            llm_provider=custom_llm_provider,
+        )
+
+    from litellm.llms.minimax.music_generation.transformation import (
+        MinimaxMusicGenerationConfig,
+    )
+
+    music_generation_config = MinimaxMusicGenerationConfig()
+
+    optional_params: dict = {}
+    for key in (
+        "lyrics",
+        "output_format",
+        "audio_setting",
+        "lyrics_optimizer",
+        "is_instrumental",
+        "audio_url",
+        "audio_base64",
+        "cover_feature_id",
+    ):
+        if key in kwargs and kwargs[key] is not None:
+            optional_params[key] = kwargs[key]
+    if kwargs.get("extra_body") is not None and isinstance(kwargs["extra_body"], dict):
+        optional_params["extra_body"] = kwargs["extra_body"]
+
+    logging_obj: LiteLLMLoggingObj = cast(
+        LiteLLMLoggingObj, kwargs.get("litellm_logging_obj")
+    )
+    if logging_obj is not None:
+        logging_obj.update_environment_variables(
+            model=model,
+            user=user,
+            optional_params=optional_params,
+            litellm_params={
+                "litellm_call_id": litellm_call_id,
+                "proxy_server_request": proxy_server_request,
+                "model_info": model_info,
+                "metadata": metadata,
+                "preset_cache_key": None,
+                "stream_response": {},
+                **kwargs,
+            },
+            custom_llm_provider=custom_llm_provider,
+        )
+
+    return base_llm_http_handler.text_to_speech_handler(
+        model=model,
+        input=prompt,
+        voice=None,
+        text_to_speech_provider_config=music_generation_config,
+        text_to_speech_optional_params=optional_params,
+        custom_llm_provider=custom_llm_provider,
+        litellm_params=litellm_params_dict,
+        logging_obj=logging_obj,
+        timeout=timeout,
+        extra_headers=extra_headers,
+        client=client,
+        _is_async=amusic_generation or False,
+    )
+
+
 ##### Health Endpoints #######################
 
 
