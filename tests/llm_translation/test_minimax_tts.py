@@ -2,22 +2,121 @@
 Tests for MiniMax Text-to-Speech integration
 """
 
+import json
 import os
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch
 
+import httpx
 import pytest
 
-sys.path.insert(
-    0, os.path.abspath("../..")
-)  # Adds the parent directory to the system path
+sys.path.insert(0, os.path.abspath("../.."))  # Adds the parent directory to the system path
 
 import litellm
 from litellm import speech
 from litellm.llms.minimax.text_to_speech.transformation import (
     MinimaxTextToSpeechConfig,
 )
+from litellm.llms.minimax.voice_clone.transformation import MinimaxVoiceCloneConfig
+
+
+def test_minimax_voice_clone_uploads_audio_and_creates_voice() -> None:
+    def handle_request(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/v1/files/upload":
+            assert b'name="purpose"' in request.content
+            assert b"voice_clone" in request.content
+            assert b'name="file"' in request.content
+            assert b"audio content" in request.content
+            return httpx.Response(
+                200,
+                json={
+                    "file": {"file_id": 123456789},
+                    "base_resp": {"status_code": 0, "status_msg": "success"},
+                },
+            )
+        assert request.url.path == "/v1/voice_clone"
+        assert request.headers["Authorization"] == "Bearer test-api-key"
+        assert request.headers["Content-Type"] == "application/json"
+        assert json.loads(request.content) == {
+            "file_id": 123456789,
+            "voice_id": "test-voice",
+            "model": "speech-2.8-hd",
+        }
+        return httpx.Response(
+            200,
+            json={
+                "voice_id": "resolved-voice",
+                "base_resp": {"status_code": 0, "status_msg": "success"},
+            },
+        )
+
+    with httpx.Client(transport=httpx.MockTransport(handle_request)) as client:
+        result = MinimaxVoiceCloneConfig().clone_voice(
+            file_name="sample.wav",
+            file_content=b"audio content",
+            voice_id="test-voice",
+            model="speech-2.8-hd",
+            client=client,
+            api_key="test-api-key",
+        )
+
+    assert result.file_id == 123456789
+    assert result.voice_id == "resolved-voice"
+
+
+def test_minimax_voice_clone_supports_china_endpoint_and_response_fallback() -> None:
+    def handle_request(request: httpx.Request) -> httpx.Response:
+        assert request.url.host == "api.minimaxi.com"
+        if request.url.path == "/v1/files/upload":
+            return httpx.Response(
+                200,
+                json={
+                    "file": {"file_id": 987654321},
+                    "base_resp": {"status_code": 0, "status_msg": "success"},
+                },
+            )
+        return httpx.Response(
+            200,
+            json={"base_resp": {"status_code": 0, "status_msg": "success"}},
+        )
+
+    with httpx.Client(transport=httpx.MockTransport(handle_request)) as client:
+        result = MinimaxVoiceCloneConfig().clone_voice(
+            file_name="sample.mp3",
+            file_content=b"audio content",
+            voice_id="china-voice",
+            model="speech-01-hd",
+            client=client,
+            api_key="test-api-key",
+            api_base="https://api.minimaxi.com",
+        )
+
+    assert result.file_id == 987654321
+    assert result.voice_id == "china-voice"
+
+
+@pytest.mark.parametrize(
+    ("file_name", "model", "message"),
+    (
+        ("sample.flac", "speech-2.8-hd", "requires an mp3, m4a, or wav"),
+        ("sample.wav", "speech-2.6-turbo", "Unsupported MiniMax voice cloning model"),
+    ),
+)
+def test_minimax_voice_clone_validates_audio_format_and_model(
+    file_name: str,
+    model: str,
+    message: str,
+) -> None:
+    with httpx.Client() as client, pytest.raises(ValueError, match=message):
+        MinimaxVoiceCloneConfig().clone_voice(
+            file_name=file_name,
+            file_content=b"audio content",
+            voice_id="test-voice",
+            model=model,
+            client=client,
+            api_key="test-api-key",
+        )
 
 
 class TestMinimaxTextToSpeechConfig:
@@ -285,9 +384,7 @@ class TestMinimaxSpeechIntegration:
             "extra_info": {},
         }
 
-        with patch(
-            "litellm.llms.custom_httpx.llm_http_handler.BaseLLMHTTPHandler.text_to_speech_handler"
-        ) as mock_tts:
+        with patch("litellm.llms.custom_httpx.llm_http_handler.BaseLLMHTTPHandler.text_to_speech_handler") as mock_tts:
             # Create a mock httpx.Response
             mock_response = MagicMock()
             mock_response.status_code = 200
@@ -344,9 +441,7 @@ class TestMinimaxProviderRegistration:
         """Test that get_llm_provider correctly identifies MiniMax models"""
         from litellm import get_llm_provider
 
-        model, provider, api_key, api_base = get_llm_provider(
-            model="minimax/speech-2.6-hd"
-        )
+        model, provider, api_key, api_base = get_llm_provider(model="minimax/speech-2.6-hd")
 
         assert model == "speech-2.6-hd"
         assert provider == "minimax"
