@@ -9157,10 +9157,15 @@ class ProviderConfigManager:
 
             return VertexAITextToSpeechConfig()
         elif litellm.LlmProviders.MINIMAX == provider:
+            from litellm.llms.minimax.music_generation.transformation import (
+                MinimaxMusicGenerationConfig,
+            )
             from litellm.llms.minimax.text_to_speech.transformation import (
                 MinimaxTextToSpeechConfig,
             )
 
+            if MinimaxMusicGenerationConfig.supports_model(model):
+                return MinimaxMusicGenerationConfig()
             return MinimaxTextToSpeechConfig()
         elif litellm.LlmProviders.AWS_POLLY == provider:
             from litellm.llms.aws_polly.text_to_speech.transformation import (
