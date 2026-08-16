@@ -8597,6 +8597,12 @@ class ProviderConfigManager:
             )
 
             return WatsonxPassthroughConfig()
+        elif LlmProviders.MINIMAX == provider:
+            from litellm.llms.minimax.passthrough.transformation import (
+                MinimaxPassthroughConfig,
+            )
+
+            return MinimaxPassthroughConfig()
         return None
 
     @staticmethod

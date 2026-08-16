@@ -18,12 +18,11 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 from typing_extensions import Self
 
 import litellm
-from litellm.llms.minimax.common_utils import MinimaxException
+from litellm.llms.minimax.common_utils import MinimaxException, resolve_minimax_api_host
 from litellm.secret_managers.main import get_secret_str
 
 MinimaxVoiceCloneFilePurpose: TypeAlias = Literal["voice_clone", "prompt_audio"]
 
-_DEFAULT_API_BASE: Final = "https://api.minimax.io/v1"
 _API_VERSION_SUFFIX: Final = "/v1"
 _FILE_UPLOAD_PATH: Final = "/files/upload"
 _VOICE_CLONE_PATH: Final = "/voice_clone"
@@ -128,8 +127,7 @@ class MinimaxVoiceCloneConfig:
 
     @staticmethod
     def _resolve_api_base(api_base: str | None) -> str:
-        resolved: Final = (api_base or get_secret_str("MINIMAX_API_BASE") or _DEFAULT_API_BASE).rstrip("/")
-        return resolved if resolved.endswith(_API_VERSION_SUFFIX) else f"{resolved}{_API_VERSION_SUFFIX}"
+        return f"{resolve_minimax_api_host(api_base)}{_API_VERSION_SUFFIX}"
 
     @staticmethod
     def validate_environment(api_key: str | None = None) -> Mapping[str, str]:
