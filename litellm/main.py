@@ -8261,11 +8261,8 @@ def speech(
             MinimaxTextToSpeechConfig,
         )
 
-        # MiniMax Text-to-Speech
         if text_to_speech_provider_config is None:
             text_to_speech_provider_config = MinimaxTextToSpeechConfig()
-
-        minimax_config: Final = cast(MinimaxTextToSpeechConfig, text_to_speech_provider_config)
 
         if api_base is not None:
             litellm_params_dict["api_base"] = api_base
@@ -8284,7 +8281,7 @@ def speech(
             model=model,
             input=input,
             voice=voice_str,
-            text_to_speech_provider_config=minimax_config,
+            text_to_speech_provider_config=text_to_speech_provider_config,
             text_to_speech_optional_params=optional_params,
             custom_llm_provider=custom_llm_provider,
             litellm_params=litellm_params_dict,

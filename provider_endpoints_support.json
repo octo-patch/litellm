@@ -2799,7 +2799,8 @@
       "endpoints": {
         "chat_completions": true,
         "messages": true,
-        "responses": true
+        "responses": true,
+        "text_to_speech": true
       }
     },
     "pg_vector": {
