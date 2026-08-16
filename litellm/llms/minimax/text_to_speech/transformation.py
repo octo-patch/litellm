@@ -16,6 +16,7 @@ from litellm.llms.base_llm.text_to_speech.transformation import (
     BaseTextToSpeechConfig,
     TextToSpeechRequestData,
 )
+from litellm.llms.minimax.common_utils import MinimaxException
 from litellm.secret_managers.main import get_secret_str
 
 if TYPE_CHECKING:
@@ -24,18 +25,6 @@ if TYPE_CHECKING:
 else:
     LiteLLMLoggingObj = Any
     HttpxBinaryResponseContent = Any
-
-
-class MinimaxException(BaseLLMException):
-    """Custom exception for MiniMax API errors"""
-
-    def __init__(
-        self,
-        status_code: int,
-        message: str,
-        headers: dict | Headers | None = None,
-    ):
-        super().__init__(status_code=status_code, message=message, headers=headers)
 
 
 class MinimaxTextToSpeechConfig(BaseTextToSpeechConfig):

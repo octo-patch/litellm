@@ -1,21 +1,17 @@
 """
-MiniMax LLM Provider
+MiniMax voice cloning module
 """
 
-from .common_utils import MinimaxException
-from .text_to_speech.transformation import MinimaxTextToSpeechConfig
-from .voice_clone.transformation import (
+from .transformation import (
     MinimaxVoiceCloneConfig,
     MinimaxVoiceCloneFilePurpose,
     MinimaxVoiceCloneFileUpload,
     MinimaxVoiceCloneRequest,
 )
 
-__all__ = [
-    "MinimaxException",
-    "MinimaxTextToSpeechConfig",
+__all__ = (
     "MinimaxVoiceCloneConfig",
     "MinimaxVoiceCloneFilePurpose",
     "MinimaxVoiceCloneFileUpload",
     "MinimaxVoiceCloneRequest",
-]
+)
