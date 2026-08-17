@@ -353,6 +353,7 @@ if TYPE_CHECKING:
         BaseVectorStoreFilesConfig,
     )
     from litellm.llms.base_llm.videos.transformation import BaseVideoConfig
+    from litellm.llms.base_llm.voice_clone.transformation import BaseVoiceCloneConfig
     from litellm.llms.bedrock.common_utils import BedrockModelInfo
     from litellm.llms.bedrock.embed.amazon_nova_transformation import (
         AmazonNovaEmbeddingConfig,
@@ -9173,6 +9174,22 @@ class ProviderConfigManager:
             )
 
             return AWSPollyTextToSpeechConfig()
+        return None
+
+    @staticmethod
+    def get_provider_voice_clone_config(
+        model: str,
+        provider: LlmProviders,
+    ) -> BaseVoiceCloneConfig | None:
+        """
+        Get voice clone configuration for a given provider.
+        """
+        if litellm.LlmProviders.MINIMAX == provider:
+            from litellm.llms.minimax.voice_clone.transformation import (
+                MinimaxVoiceCloneConfig,
+            )
+
+            return MinimaxVoiceCloneConfig()
         return None
 
     @staticmethod
