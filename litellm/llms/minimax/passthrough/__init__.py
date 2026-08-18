@@ -1,0 +1,3 @@
+"""
+MiniMax pass-through module
+"""
